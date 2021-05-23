@@ -15,6 +15,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # https://dgpu-docs.intel.com/installation-guides/ubuntu/ubuntu-bionic.html
 # https://www.networkinghowtos.com/howto/installing-lspci-on-centos/
 USER root
+WORKDIR /tmp
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends -o=Dpkg::Use-Pty=0 && \
@@ -24,19 +25,31 @@ RUN apt-get update -y && \
     apt-get install -y intel-opencl intel-level-zero-gpu level-zero intel-igc-opencl-devel level-zero-devel && \
     apt-get -y clean && apt-get -y autoremove && apt-get -y autoclean 
 
+# Switch back to jovyan to avoid accidental container runs as root
+USER $NB_UID
+WORKDIR /tmp
+
 ### install Fastai (default is PyTorch with NVIDIA CUDA support; we have Intel® oneAPI PyTorch installed)
 # Intel® oneAPI
 # https://software.intel.com/content/www/us/en/develop/articles/installing-ai-kit-with-conda.html#gs.12pe6k
 ARG ONEAPI_ENV=aikit
+
+### download Fastai course books
+# Setup work directory for downloading course book, sample training data
+ARG FASTAI=".fastai"
+ARG FASTBOOK="fastbook"
+
+# Downloaded data, extract paths are as below-
+# download_testdata.py --> $HOME/$FASTAI/archive
+# extract.sh           --> $HOME/$FASTAI/data
+COPY --chown=$NB_USER:$NB_GID download_testdata.py $HOME/$FASTAI/download_testdata.py
+COPY --chown=$NB_USER:$NB_GID extract.sh $HOME/$FASTAI/extract.sh
 
 # CONDA_PREFIX will be used to for pip install of Fastai under target ONEAPI_ENV
 # https://github.com/fastai/fastai#installing
 # "To install with pip, use: pip install fastai. If you install with pip, you should install PyTorch first"
 # Fastai is built on top of PyTorch, and Intel oneAPI includes a CPU optimized PyTorch which we will use inside ONEAPI_ENV
 ARG CONDA_PREFIX=$CONDA_DIR/envs/$ONEAPI_ENV
-
-USER $NB_UID
-WORKDIR /tmp
 
 # Our base is already a Jupyter Notebook, so just pick any extra packages for Fastai within our Jupyter environment
 # https://fastai1.fast.ai/install.html#jupyter-notebook-dependencies
@@ -51,8 +64,10 @@ RUN conda create -n $ONEAPI_ENV --quiet --yes -c intel intel-aikit-tensorflow in
     $CONDA_PREFIX/bin/python -m ipykernel install --user --name $ONEAPI_ENV --display-name "Fastai (Intel® oneAPI)" && \
     conda update -n $ONEAPI_ENV --all --quiet --yes && \
     conda clean --all -f -y && \
-    fix-permissions "${CONDA_DIR}" && \
-    fix-permissions "/home/${NB_USER}"
+    $CONDA_PREFIX/bin/python $HOME/$FASTAI/download_testdata.py && \
+    chmod u+x $HOME/$FASTAI/extract.sh && \
+    $HOME/$FASTAI/extract.sh && \
+    git clone https://github.com/fastai/fastbook --depth 1 $FASTBOOK
 
 # Copy kernel `logo` images to kernelspec
 # https://jupyter-client.readthedocs.io/en/stable/kernels.html#kernel-specs
@@ -64,31 +79,16 @@ COPY --chown=$NB_USER:$NB_GID logo-64x64.png $HOME/.local/share/jupyter/kernels/
 # PLEASE SET 'USE_DAAL4PY_SKLEARN' ENVIRONMENT VARIABLE TO 'YES' TO ENABLE THE ACCELERATION.
 ENV USE_DAAL4PY_SKLEARN=YES
 
-### download Fastai course books
-# Setup work directory for downloading course book, sample training data
-ARG FASTAI=".fastai"
-ARG FASTBOOK="fastbook"
+# Fix permissions as root
+USER root
+WORKDIR /tmp
 
+RUN fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+
+# Switch back to jovyan to avoid accidental container runs as root
 USER $NB_UID
 WORKDIR $HOME
-
-RUN mkdir "$HOME/$FASTBOOK" && \
-    mkdir "$HOME/$FASTAI" && \
-    fix-permissions "${CONDA_DIR}" && \
-    fix-permissions "/home/${NB_USER}"
-
-COPY --chown=$NB_USER:$NB_GID download_testdata.py $HOME/$FASTAI
-COPY --chown=$NB_USER:$NB_GID extract.sh $HOME/$FASTAI
-
-# Downloaded data, extract paths are as below-
-# download_testdata.py --> $HOME/$FASTAI/archive
-# extract.sh           --> $HOME/$FASTAI/data
-RUN git clone https://github.com/fastai/fastbook --depth 1 $FASTBOOK && \
-    $CONDA_PREFIX/bin/python $HOME/$FASTAI/download_testdata.py && \
-    chmod u+x $HOME/$FASTAI/extract.sh && \
-    $HOME/$FASTAI/extract.sh && \
-    fix-permissions "${CONDA_DIR}" && \
-    fix-permissions "/home/${NB_USER}"
 
 # Make course book, data available to mount externally
 VOLUME $HOME/$FASTBOOK
