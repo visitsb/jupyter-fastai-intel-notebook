@@ -72,8 +72,8 @@ RUN conda create -n $ONEAPI_ENV --quiet --yes -c intel intel-aikit-tensorflow in
 # Copy kernel `logo` images to kernelspec
 # https://jupyter-client.readthedocs.io/en/stable/kernels.html#kernel-specs
 # `~/.local/share/jupyter/kernels` (Linux)
-COPY --chown=$NB_USER:$NB_GID logo-32x32.png $HOME/.local/share/jupyter/kernels/$ONEAPI_ENV
-COPY --chown=$NB_USER:$NB_GID logo-64x64.png $HOME/.local/share/jupyter/kernels/$ONEAPI_ENV
+COPY --chown=$NB_USER:$NB_GID logo-32x32.png $HOME/.local/share/jupyter/kernels/$ONEAPI_ENV/logo-32x32.png
+COPY --chown=$NB_USER:$NB_GID logo-64x64.png $HOME/.local/share/jupyter/kernels/$ONEAPI_ENV/logo-64x64.png
 
 # INSTALLED PACKAGE OF SCIKIT-LEARN CAN BE ACCELERATED USING DAAL4PY.
 # PLEASE SET 'USE_DAAL4PY_SKLEARN' ENVIRONMENT VARIABLE TO 'YES' TO ENABLE THE ACCELERATION.
