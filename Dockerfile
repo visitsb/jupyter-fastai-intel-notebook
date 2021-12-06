@@ -1,7 +1,7 @@
 # Copyright (c) Amnico LLC
 # SPDX-License-Identifier: BSD-3-Clause
 
-ARG base_image="jupyter/scipy-notebook:latest"
+ARG base_image="visitsb/jupyter-core-notebooks:latest"
 FROM "$base_image"
 
 # Fix DL4006
@@ -58,15 +58,15 @@ ARG CONDA_PREFIX=$CONDA_DIR/envs/$ONEAPI_ENV
 # https://www.pugetsystems.com/labs/hpc/Intel-oneAPI-AI-Analytics-Toolkit----Introduction-and-Install-with-conda-2068/
 # 
 # TODO: -c conda-forge intel-aikit-modin takes ridiculously long time for conda to resolve; skipping `intel-aikit-modin` from environment
-RUN conda create -n $ONEAPI_ENV --quiet --yes -c intel intel-aikit-tensorflow intel-aikit-pytorch && \
+RUN conda create -n $ONEAPI_ENV --quiet --yes -c intel intelpython3_full intel-aikit-tensorflow intel-aikit-pytorch && \
     conda install -n $ONEAPI_ENV --quiet --yes nb_conda nb_conda_kernels ipykernel pip && \
     $CONDA_PREFIX/bin/python -m pip install --quiet fastai jupyter_contrib_nbextensions ipywidgets && \
     $CONDA_PREFIX/bin/python -m ipykernel install --user --name $ONEAPI_ENV --display-name "Fastai (Intel® oneAPI)" && \
     conda update -n $ONEAPI_ENV --all --quiet --yes && \
     conda clean --all -f -y && \
-    $CONDA_PREFIX/bin/python $HOME/$FASTAI/download_testdata.py && \
+    # $CONDA_PREFIX/bin/python $HOME/$FASTAI/download_testdata.py && \
     chmod u+x $HOME/$FASTAI/extract.sh && \
-    $HOME/$FASTAI/extract.sh && \
+    # $HOME/$FASTAI/extract.sh && \
     git clone https://github.com/fastai/fastbook --depth 1 $FASTBOOK
 
 # Copy kernel `logo` images to kernelspec
